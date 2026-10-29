@@ -1,0 +1,1437 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>نازل الماس پلی‌کریستالی — تحلیل فنی دوام، پایداری اوریفیس و اقتصاد نگهداری</title>
+<meta name="description" content="تحلیل فنی نازل الماس پلی‌کریستالی DiamondBack V6 در فارم چاپ سه‌بعدی FDM: ساختار ماده، پایداری اوریفیس، هدایت حرارتی، عملکرد جریان و اقتصاد نگهداری." />
+<meta name="author" content="mashmalol" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<style>
+  /* ============================================================
+     TOKENS
+     ============================================================ */
+  :root {
+    --black:        #08090a;
+    --black-deep:   #050606;
+    --gunmetal:     #1b2026;
+    --gunmetal-2:   #262d35;
+    --gunmetal-3:   #333c46;
+    --amber:        #b07a2c;
+    --amber-soft:   #d29a45;
+    --blood:        #8f1f1f;
+    --blood-bright: #b82626;
+    --sodium:       #f0c04a;
+    --cold-white:   #dfe6ed;
+    --cold-dim:     #9aa6b2;
+
+    --font-fa:   "Vazirmatn", "Tahoma", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+    --max: 1080px;
+    --gutter: clamp(18px, 4vw, 48px);
+    --border: 1px solid var(--gunmetal-3);
+    --shadow-pool: 0 30px 90px -40px rgba(0,0,0,0.95);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html {
+    scroll-behavior: smooth;
+    direction: rtl;
+    scroll-padding-top: 90px;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--black);
+    background-image:
+      radial-gradient(900px 520px at 12% -6%, rgba(240,192,74,0.055), transparent 62%),
+      radial-gradient(760px 480px at 88% 8%, rgba(143,31,31,0.075), transparent 65%),
+      radial-gradient(1200px 700px at 50% 118%, rgba(176,122,44,0.05), transparent 70%);
+    background-attachment: fixed;
+    color: var(--cold-white);
+    font-family: var(--font-fa);
+    font-size: 16px;
+    line-height: 1.9;
+    text-align: right;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-fa);
+    font-weight: 700;
+    letter-spacing: 0;
+    text-transform: none;
+    line-height: 1.45;
+    margin: 0;
+  }
+
+  p { margin: 0 0 1.1em; }
+  a { color: var(--sodium); text-decoration: none; }
+  a:hover { color: var(--amber-soft); }
+
+  :focus-visible {
+    outline: 2px solid var(--sodium);
+    outline-offset: 3px;
+  }
+
+  ::selection { background: var(--blood); color: var(--cold-white); }
+
+  .mono {
+    font-family: var(--font-mono);
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  bdi { unicode-bidi: isolate; }
+
+  /* ============================================================
+     OVERLAYS
+     ============================================================ */
+  .grain,
+  .scanlines {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9000;
+  }
+
+  .grain {
+    opacity: 0.055;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .scanlines {
+    opacity: 0.5;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      rgba(223,230,237,0.028) 0px,
+      rgba(223,230,237,0.028) 1px,
+      transparent 1px,
+      transparent 4px
+    );
+    animation: scan-drift 14s linear infinite;
+  }
+
+  @keyframes scan-drift {
+    from { background-position: 0 0; }
+    to   { background-position: 0 400px; }
+  }
+
+  /* progress bar */
+  .progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 2px;
+    width: 0;
+    background: linear-gradient(90deg, var(--amber), var(--sodium));
+    box-shadow: 0 0 12px rgba(240,192,74,0.5);
+    z-index: 10000;
+    transition: width 0.06s linear;
+    pointer-events: none;
+  }
+
+  /* ============================================================
+     LAYOUT
+     ============================================================ */
+  .wrap {
+    width: 100%;
+    max-width: var(--max);
+    margin-inline: auto;
+    padding-inline: var(--gutter);
+  }
+
+  .skip-link {
+    position: absolute;
+    top: -80px;
+    right: 12px;
+    z-index: 10000;
+    background: var(--sodium);
+    color: var(--black-deep);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 10px 16px;
+    transition: top 0.2s ease;
+  }
+  .skip-link:focus { top: 12px; }
+
+  /* ============================================================
+     SHARED PRIMITIVES
+     ============================================================ */
+  .label {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-fa);
+    font-size: 12px;
+    color: var(--amber-soft);
+    margin: 0 0 16px;
+    line-height: 1.4;
+  }
+  .label::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    background: var(--blood-bright);
+    box-shadow: 0 0 12px rgba(184,38,38,0.85);
+    animation: alarm-pulse 5s ease-in-out infinite;
+    flex: none;
+  }
+  .label .mono {
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--amber);
+  }
+
+  @keyframes alarm-pulse {
+    0%, 100% { opacity: 0.35; box-shadow: 0 0 4px rgba(184,38,38,0.4); }
+    50%      { opacity: 1;    box-shadow: 0 0 16px rgba(184,38,38,0.95); }
+  }
+
+  .section-title {
+    font-family: var(--font-fa);
+    font-weight: 700;
+    font-size: clamp(26px, 4.5vw, 44px);
+    line-height: 1.4;
+    color: var(--cold-white);
+    margin: 0 0 22px;
+  }
+
+  .section-lede {
+    color: var(--cold-dim);
+    font-size: clamp(15px, 1.6vw, 17px);
+    max-width: 62ch;
+    margin: 0 0 28px;
+  }
+
+  .slash {
+    height: 2px;
+    width: 100%;
+    max-width: 200px;
+    margin-block: 22px 0;
+    background: linear-gradient(270deg, var(--blood) 0%, var(--amber) 46%, transparent 100%);
+    transform: skewX(28deg);
+    transform-origin: right center;
+  }
+
+  .scanner {
+    position: relative;
+    background: linear-gradient(180deg, rgba(27,32,38,0.92), rgba(8,9,10,0.94));
+    border: var(--border);
+    padding: clamp(20px, 3vw, 32px);
+    box-shadow: var(--shadow-pool);
+  }
+
+  .scanner::before,
+  .scanner::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--amber);
+    opacity: 0.85;
+    pointer-events: none;
+  }
+  .scanner::before { top: -1px; right: -1px; border-left: 0; border-bottom: 0; }
+  .scanner::after  { bottom: -1px; left: -1px; border-right: 0; border-top: 0; }
+
+  .card {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(160deg, rgba(38,45,53,0.55) 0%, rgba(8,9,10,0.9) 62%);
+    border: var(--border);
+    padding: clamp(20px, 2.6vw, 28px);
+    transition: border-color 0.35s ease, transform 0.35s ease, box-shadow 0.35s ease;
+  }
+
+  .card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(115deg, transparent 0%, rgba(223,230,237,0.055) 42%, rgba(223,230,237,0.012) 52%, transparent 68%);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+
+  .card:hover,
+  .card:focus-within {
+    border-color: var(--amber);
+    transform: translateY(-2px);
+    box-shadow: 0 24px 60px -34px rgba(240,192,74,0.5);
+  }
+  .card:hover::after,
+  .card:focus-within::after { opacity: 1; }
+
+  /* ============================================================
+     HEADER
+     ============================================================ */
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 8000;
+    background: rgba(5,6,6,0.86);
+    backdrop-filter: blur(14px) saturate(120%);
+    -webkit-backdrop-filter: blur(14px) saturate(120%);
+    border-bottom: 1px solid var(--gunmetal-2);
+  }
+
+  .site-header .wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    min-height: 66px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .brand-title {
+    font-family: var(--font-fa);
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--cold-white);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .brand-tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--amber);
+    padding: 4px 8px;
+    border: 1px solid rgba(176,122,44,0.5);
+    background: rgba(176,122,44,0.08);
+    white-space: nowrap;
+    flex: none;
+  }
+
+  .nav {
+    display: flex;
+    align-items: center;
+    gap: clamp(12px, 2vw, 24px);
+  }
+
+  .nav a {
+    font-family: var(--font-fa);
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--cold-dim);
+    transition: color 0.2s ease;
+    white-space: nowrap;
+  }
+  .nav a:hover { color: var(--sodium); }
+
+  @media (max-width: 900px) {
+    .nav a:not(.nav-keep) { display: none; }
+  }
+
+  /* ============================================================
+     HERO
+     ============================================================ */
+  .hero {
+    position: relative;
+    padding-block: clamp(48px, 7vw, 88px) clamp(44px, 6vw, 72px);
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: "";
+    position: absolute;
+    inset: -20% -10% auto auto;
+    width: 78%;
+    height: 150%;
+    background: repeating-linear-gradient(72deg, rgba(240,192,74,0.05) 0px, rgba(240,192,74,0.05) 3px, transparent 3px, transparent 34px);
+    transform: skewX(-14deg);
+    pointer-events: none;
+  }
+
+  .hero-grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: clamp(28px, 4vw, 52px);
+    align-items: start;
+  }
+
+  @media (max-width: 940px) {
+    .hero-grid { grid-template-columns: 1fr; }
+  }
+
+  .hero h1 {
+    font-family: var(--font-fa);
+    font-weight: 800;
+    font-size: clamp(34px, 6.4vw, 72px);
+    line-height: 1.28;
+    color: var(--cold-white);
+    margin-block: 8px 0;
+    text-shadow: 0 0 70px rgba(240,192,74,0.14);
+  }
+
+  .hero h1 em {
+    font-style: normal;
+    color: var(--sodium);
+  }
+
+  .hero-sub {
+    font-size: clamp(15px, 1.9vw, 19px);
+    line-height: 1.85;
+    color: var(--cold-white);
+    margin-block: 20px 0;
+    max-width: 54ch;
+  }
+
+  .hero-desc {
+    font-size: clamp(14px, 1.6vw, 16px);
+    line-height: 2;
+    color: var(--cold-dim);
+    margin-block: 16px 0;
+    max-width: 58ch;
+    text-align: justify;
+  }
+
+  .hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-block: 28px 0;
+  }
+
+  .hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+    font-size: 12px;
+    color: var(--cold-dim);
+    margin-block: 24px 0;
+    padding-top: 18px;
+    border-top: 1px solid var(--gunmetal-2);
+  }
+
+  .hero-meta .mono {
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    color: var(--amber);
+  }
+
+  .hero-meta .dot {
+    width: 3px;
+    height: 3px;
+    background: var(--gunmetal-3);
+    border-radius: 50%;
+    flex: none;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-family: var(--font-fa);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 14px 26px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background 0.22s ease, color 0.22s ease, border-color 0.22s ease, transform 0.22s ease;
+    line-height: 1.4;
+  }
+
+  .btn-primary {
+    background: var(--sodium);
+    color: var(--black-deep);
+    border-color: var(--sodium);
+  }
+  .btn-primary:hover {
+    background: var(--amber-soft);
+    border-color: var(--amber-soft);
+    color: var(--black-deep);
+    transform: translateY(-1px);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--cold-white);
+    border-color: var(--gunmetal-3);
+  }
+  .btn-ghost:hover {
+    border-color: var(--blood-bright);
+    color: var(--cold-white);
+    transform: translateY(-1px);
+  }
+
+  /* ============================================================
+     SPEC SHEET (hero aside)
+     ============================================================ */
+  .aside-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding-bottom: 14px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--gunmetal-2);
+  }
+
+  .aside-head .title {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--cold-white);
+  }
+
+  .status-chip {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--sodium);
+    border: 1px solid rgba(240,192,74,0.5);
+    background: rgba(240,192,74,0.08);
+    padding: 4px 9px;
+    white-space: nowrap;
+  }
+
+  .meta-list {
+    display: grid;
+    gap: 0;
+    margin: 0;
+  }
+
+  .meta-row {
+    display: grid;
+    grid-template-columns: 140px minmax(0, 1fr);
+    gap: 12px;
+    padding-block: 10px;
+    border-bottom: 1px dashed rgba(51,60,70,0.9);
+  }
+  .meta-row:last-child { border-bottom: 0; }
+
+  .meta-row dt {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--amber);
+    line-height: 1.7;
+  }
+
+  .meta-row dd {
+    margin: 0;
+    font-size: 13px;
+    color: var(--cold-white);
+    word-break: break-word;
+    line-height: 1.7;
+  }
+
+  @media (max-width: 420px) {
+    .meta-row { grid-template-columns: 1fr; gap: 2px; }
+  }
+
+  /* ============================================================
+     ARTICLE
+     ============================================================ */
+  .article {
+    padding-block: clamp(48px, 6vw, 88px);
+    border-top: 1px solid rgba(51,60,70,0.6);
+  }
+
+  .article-inner {
+    max-width: 780px;
+    margin-inline: auto;
+    padding-inline: var(--gutter);
+  }
+
+  .chapter {
+    margin-block-end: clamp(48px, 6vw, 72px);
+  }
+
+  .chapter:last-of-type { margin-block-end: 0; }
+
+  .chapter-header {
+    position: relative;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 24px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--gunmetal-2);
+  }
+
+  .chapter-header::after {
+    content: "";
+    position: absolute;
+    bottom: -1px;
+    right: 0;
+    width: 60px;
+    height: 2px;
+    background: var(--amber);
+  }
+
+  .chapter-num {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    color: var(--amber);
+    flex: none;
+    padding-top: 6px;
+  }
+
+  .chapter h2 {
+    font-family: var(--font-fa);
+    font-weight: 700;
+    font-size: clamp(20px, 3vw, 30px);
+    line-height: 1.45;
+    color: var(--cold-white);
+  }
+
+  .chapter-body p {
+    font-size: 16px;
+    line-height: 2.05;
+    color: var(--cold-white);
+    text-align: justify;
+    text-justify: inter-word;
+    margin-bottom: 18px;
+  }
+
+  .chapter-body p:last-child { margin-bottom: 0; }
+
+  .chapter-body strong {
+    color: var(--sodium);
+    font-weight: 700;
+  }
+
+  /* callout */
+  .callout {
+    position: relative;
+    margin-block: 28px;
+    padding: clamp(20px, 3vw, 30px) clamp(22px, 3vw, 32px);
+    background: linear-gradient(180deg, rgba(240,192,74,0.055), rgba(8,9,10,0.9));
+    border: 1px solid var(--gunmetal-3);
+    border-inline-start: 3px solid var(--sodium);
+  }
+
+  .callout-title {
+    font-family: var(--font-fa);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--sodium);
+    margin: 0 0 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px dashed var(--gunmetal-3);
+    letter-spacing: 0;
+  }
+
+  .callout p {
+    font-size: 15.5px;
+    line-height: 2;
+    color: var(--cold-white);
+    text-align: justify;
+    margin: 0;
+  }
+
+  .callout--final {
+    border-inline-start-color: var(--blood-bright);
+    background: linear-gradient(180deg, rgba(143,31,31,0.12), rgba(8,9,10,0.94));
+  }
+
+  .callout--final .callout-title { color: var(--blood-bright); }
+
+  /* tech list */
+  .tech-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 14px;
+  }
+
+  .tech-list li {
+    position: relative;
+    padding-inline-start: 26px;
+    font-size: 15px;
+    line-height: 1.95;
+    color: var(--cold-dim);
+    text-align: justify;
+  }
+
+  .tech-list li::before {
+    content: "";
+    position: absolute;
+    inset-inline-start: 0;
+    top: 15px;
+    width: 12px;
+    height: 1px;
+    background: var(--amber);
+  }
+
+  .tech-list li strong {
+    color: var(--sodium);
+    font-weight: 700;
+  }
+
+  /* article footer */
+  .article-footer {
+    margin-top: clamp(40px, 5vw, 64px);
+    padding-top: 28px;
+    border-top: 1px solid var(--gunmetal-2);
+  }
+
+  .hashtags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    padding-block: 20px;
+    border-bottom: 1px dashed var(--gunmetal-3);
+  }
+
+  .hashtags span {
+    font-size: 12.5px;
+    color: var(--amber-soft);
+    line-height: 1.7;
+    font-weight: 500;
+  }
+
+  .source {
+    margin-top: 22px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    font-size: 12.5px;
+    color: var(--cold-dim);
+  }
+
+  .source a {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--sodium);
+    border-bottom: 1px solid rgba(240,192,74,0.35);
+    padding-bottom: 1px;
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  .source a:hover { border-bottom-color: var(--sodium); }
+
+  /* ============================================================
+     CONNECT
+     ============================================================ */
+  .author {
+    padding-block: clamp(56px, 7vw, 96px);
+    border-top: 1px solid rgba(51,60,70,0.6);
+  }
+
+  .connect-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 18px;
+    margin-top: 32px;
+  }
+
+  .connect-card {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    padding: clamp(22px, 3vw, 32px);
+    position: relative;
+    padding-inline-end: clamp(56px, 4vw, 68px);
+  }
+
+  .connect-tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--amber);
+    display: block;
+    margin-bottom: 14px;
+  }
+
+  .connect-title {
+    font-family: var(--font-mono);
+    font-size: clamp(14px, 1.8vw, 17px);
+    font-weight: 600;
+    color: var(--cold-white);
+    margin: 0 0 12px;
+    word-break: break-all;
+    line-height: 1.4;
+    direction: ltr;
+    unicode-bidi: isolate;
+    text-align: right;
+  }
+
+  .connect-desc {
+    font-size: 14px;
+    line-height: 1.85;
+    color: var(--cold-dim);
+    margin: 0;
+  }
+
+  .connect-arrow {
+    position: absolute;
+    top: clamp(22px, 3vw, 32px);
+    inset-inline-end: clamp(22px, 3vw, 32px);
+    font-family: var(--font-mono);
+    font-size: 20px;
+    color: var(--sodium);
+    transition: transform 0.3s ease;
+    line-height: 1;
+  }
+
+  .connect-card:hover .connect-arrow { transform: translate(2px, -2px); }
+
+  /* ============================================================
+     FOOTER
+     ============================================================ */
+  .site-footer {
+    border-top: 1px solid var(--gunmetal-2);
+    padding-block: 48px 56px;
+    background: rgba(5,6,6,0.7);
+  }
+
+  .footer-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.8fr) repeat(auto-fit, minmax(150px, 1fr));
+    gap: 36px;
+  }
+
+  @media (max-width: 720px) {
+    .footer-grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  .footer-brand {
+    font-family: var(--font-fa);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--cold-white);
+    margin-bottom: 12px;
+    line-height: 1.5;
+  }
+
+  .footer-note {
+    font-size: 13.5px;
+    line-height: 1.9;
+    color: var(--cold-dim);
+    max-width: 46ch;
+    margin: 0;
+  }
+
+  .footer-col h4 {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--amber);
+    margin-bottom: 14px;
+  }
+
+  .footer-col ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 9px;
+  }
+
+  .footer-col a {
+    font-size: 13px;
+    color: var(--cold-dim);
+    transition: color 0.2s ease;
+    word-break: break-all;
+    line-height: 1.7;
+  }
+  .footer-col a:hover { color: var(--sodium); }
+
+  .footer-col a.mono { font-size: 12px; }
+
+  .footer-legal {
+    margin-top: 44px;
+    padding-top: 22px;
+    border-top: 1px solid rgba(51,60,70,0.6);
+    font-size: 11.5px;
+    color: var(--gunmetal-3);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .footer-legal .mono {
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  /* ============================================================
+     REVEAL
+     ============================================================ */
+  .reveal {
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.2, 0.7, 0.3, 1);
+  }
+  .reveal.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* ============================================================
+     REDUCED MOTION
+     ============================================================ */
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+
+    .scanlines { animation: none; opacity: 0.3; }
+    .label::before { animation: none; opacity: 1; }
+    .reveal { opacity: 1; transform: none; }
+    .card:hover, .btn:hover, .connect-card:hover .connect-arrow { transform: none; }
+  }
+</style>
+</head>
+<body>
+
+<a class="skip-link" href="#main">پرش به محتوا</a>
+
+<div class="grain" aria-hidden="true"></div>
+<div class="scanlines" aria-hidden="true"></div>
+<div class="progress" id="progress" aria-hidden="true"></div>
+
+<!-- ============================ HEADER ============================ -->
+<header class="site-header">
+  <div class="wrap">
+    <div class="brand">
+      <span class="brand-title">تحلیل فنی نازل الماس</span>
+      <span class="brand-tag mono">DB / V6</span>
+    </div>
+    <nav class="nav" aria-label="ناوبری اصلی">
+      <a href="#summary">خلاصه</a>
+      <a href="#ch1">ماده</a>
+      <a href="#ch2">اوریفیس</a>
+      <a href="#ch4">جریان</a>
+      <a href="#ch5">فارم</a>
+      <a href="#conclusion">جمع‌بندی</a>
+      <a href="#connect" class="nav-keep">ارتباط</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ============================ HERO ============================ -->
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="wrap">
+      <div class="hero-grid">
+
+        <div class="hero-main">
+          <p class="label">
+            <span class="mono">FILE 01 / FDM PRINT-FARM</span>
+          </p>
+
+          <h1 id="hero-title">
+            نازل الماس <em>پلی‌کریستالی</em>
+          </h1>
+
+          <p class="hero-sub">
+            تحلیل فنی دوام، پایداری اوریفیس و اقتصاد نگهداری در فارم چاپ سه‌بعدی
+          </p>
+
+          <p class="hero-desc">
+            در چاپ سه‌بعدی FDM، نازل صرفاً یک قطعه مصرفی نیست؛ یک متغیر فرآیندی با اثر
+            مستقیم بر پایداری اکستروژن، تکرارپذیری ابعادی، کیفیت سطح و زمان توقف خط است.
+            نازل الماس پلی‌کریستالی DiamondBack برای پلتفرم V6، به‌جای بهبود حاشیه‌ای
+            حداکثر دبی، بر دو محور تمرکز دارد: پایداری ابعادی دهانه خروجی در طول عمر، و
+            مقاومت به سایش در برابر فیلامنت‌های ساینده.
+          </p>
+
+          <div class="hero-actions">
+            <a href="#article" class="btn btn-primary">خواندن تحلیل کامل</a>
+            <a href="#connect" class="btn btn-ghost">ارتباط با نویسنده</a>
+          </div>
+
+          <p class="hero-meta">
+            <span class="mono">DIAMONDBACK V6</span>
+            <span class="dot" aria-hidden="true"></span>
+            <span>پلی‌کریستالی</span>
+            <span class="dot" aria-hidden="true"></span>
+            <span>زمان مطالعه حدود ۵ دقیقه</span>
+          </p>
+        </div>
+
+        <aside class="scanner hero-aside reveal" aria-label="مشخصات فنی">
+          <div class="aside-head">
+            <span class="title">SPEC SHEET</span>
+            <span class="status-chip">CANONICAL</span>
+          </div>
+
+          <dl class="meta-list">
+            <div class="meta-row">
+              <dt>محصول</dt>
+              <dd><bdi>DiamondBack V6</bdi></dd>
+            </div>
+            <div class="meta-row">
+              <dt>ماده تیپ</dt>
+              <dd>الماس پلی‌کریستالی</dd>
+            </div>
+            <div class="meta-row">
+              <dt>فرآیند تولید</dt>
+              <dd>حدود ۱ میلیون <bdi>PSI</bdi> / حدود ۱۴۰۰ درجه سانتی‌گراد</dd>
+            </div>
+            <div class="meta-row">
+              <dt>کاتالیزور</dt>
+              <dd>کبالت، حذف‌شده</dd>
+            </div>
+            <div class="meta-row">
+              <dt>قطر تست‌شده</dt>
+              <dd>۰٫۴ و ۱٫۰ میلی‌متر</dd>
+            </div>
+            <div class="meta-row">
+              <dt>حداکثر دبی ثبت‌شده</dt>
+              <dd>۷۴ <bdi>mm³/s</bdi> (نازل ۱٫۰ میلی‌متر)</dd>
+            </div>
+            <div class="meta-row">
+              <dt>کاربرد هدف</dt>
+              <dd>فارم چاپ / فیلامنت ساینده</dd>
+            </div>
+            <div class="meta-row">
+              <dt>مزیت اصلی</dt>
+              <dd>پایداری اوریفیس در طول عمر</dd>
+            </div>
+          </dl>
+        </aside>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ ARTICLE ============================ -->
+  <article class="article" id="article">
+    <div class="article-inner">
+
+      <!-- ==================== SUMMARY ==================== -->
+      <section class="chapter" id="summary" aria-labelledby="summary-title">
+        <header class="chapter-header">
+          <span class="chapter-num" aria-hidden="true">00</span>
+          <h2 id="summary-title">در یک نگاه</h2>
+        </header>
+
+        <div class="chapter-body">
+          <p>
+            مزیت اصلی نازل الماس پلی‌کریستالی برای فارم چاپ، افزایش حداکثر دبی نیست؛
+            حفظ پایداری اوریفیس در طول عمر و مقاومت سایشی در برابر فیلامنت‌های ساینده است.
+            این دو ویژگی، پیامدهای مستقیمی بر زمان توقف خط، اعتبار تنظیمات اسلایسر و
+            تکرارپذیری کیفیت میان پرینترها دارند.
+          </p>
+
+          <div class="callout">
+            <p class="callout-title">نکات کلیدی</p>
+            <ul class="tech-list">
+              <li>
+                <strong>پایداری اوریفیس</strong> — ارزش اصلی برای فارم چاپ، حفظ قطر مؤثر
+                دهانه خروجی در طول ساعت‌های کار است، نه افزایش حداکثر دبی.
+              </li>
+              <li>
+                <strong>مقاومت سایشی</strong> — برای فیلامنت‌های ساینده (تقویت‌شده با
+                الیاف شیشه، مواد معدنی و کامپوزیت‌ها)، الماس پلی‌کریستالی مقاومت سایشی
+                بسیار بالاتری نسبت به نازل برنجی یا فولادی ارائه می‌دهد.
+              </li>
+              <li>
+                <strong>مکانیزم شکست</strong> — الماس پلی‌کریستالی شکست‌ناپذیر نیست، اما
+                ساختار دانه‌ای آن از انتشار ترک در یک صفحه ترجیحی جلوگیری می‌کند و
+                احتمال شکست معنادار را کاهش می‌دهد.
+              </li>
+              <li>
+                <strong>مقایسه با تغییر قطر</strong> — اگر هدف اصلی افزایش نرخ جریان باشد،
+                افزایش قطر نازل معمولاً اثری بزرگ‌تر از تغییر فناوری نازل دارد.
+              </li>
+              <li>
+                <strong>هدایت حرارتی</strong> — هدایت حرارتی بالای الماس یک مزیت بالقوه
+                است؛ اثر دقیق آن بر پروفایل حرارتی اکستروژن باید تجربی و کنترل‌شده سنجیده
+                شود.
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== CH 01 ==================== -->
+      <section class="chapter" id="ch1" aria-labelledby="ch1-title">
+        <header class="chapter-header">
+          <span class="chapter-num" aria-hidden="true">01</span>
+          <h2 id="ch1-title">ساختار ماده و مکانیزم دوام</h2>
+        </header>
+
+        <div class="chapter-body">
+          <p>
+            الماس پلی‌کریستالی در شرایط فشار بسیار بالا، حدود ۱ میلیون <bdi>PSI</bdi>،
+            و دمای حدود ۱۴۰۰ درجه سانتی‌گراد و به‌طور هم‌زمان تولید می‌شود. در این فرآیند
+            از کاتالیزور کبالت برای زینتر کردن و تبدیل استفاده می‌شود و سپس کبالت باید تا
+            حد ممکن حذف شود؛ باقی‌ماندن کبالت می‌تواند پایداری حرارتی و شیمیایی کامپکت
+            الماس را تحت تأثیر قرار دهد. محصول اولیه یک اسلاگ پلی‌کریستالی است که پس از آن
+            باید به هندسه نازل ماشین‌کاری و شکل‌دهی شود. همین مرحله شکل‌دهی و پرداخت است
+            که به‌طور مستقیم بر یکنواختی اوریفیس و کیفیت سطح داخلی اثر می‌گذارد.
+          </p>
+
+          <p>
+            تفاوت کلیدی با الماس مونوکریستالی در ساختار میکروسکوپی است. الماس مونوکریستالی
+            یک شبکه بلوری پیوسته و جهت‌دار دارد و در نتیجه صفحات شکست
+            (<bdi>cleavage planes</bdi>) مشخصی دارد. در الماس پلی‌کریستالی، دانه‌های بلوری
+            متعدد با جهت‌گیری‌های متفاوت وجود دارد؛ بنابراین ترک نمی‌تواند به‌سادگی در یک
+            صفحه ترجیحی و در طول یک مسیر طولانی منتشر شود. این ساختار، مقاومت به شکست را در
+            جهت‌های مختلف بهبود می‌دهد، اما به معنای شکست‌ناپذیری مطلق نیست. الماس
+            پلی‌کریستالی نیز می‌تواند آسیب ببیند، اما مکانیزم آسیب و احتمال شکست معنادار
+            در کاربرد نازل با الماس مونوکریستالی متفاوت است. برای فارم چاپ، این تفاوت زمانی
+            اهمیت دارد که نازل در معرض ضربه، تماس نامناسب با بستر، گیر کردن فیلامنت یا
+            سایش پیوسته قرار گیرد.
+          </p>
+        </div>
+      </section>
+
+      <!-- ==================== CH 02 ==================== -->
+      <section class="chapter" id="ch2" aria-labelledby="ch2-title">
+        <header class="chapter-header">
+          <span class="chapter-num" aria-hidden="true">02</span>
+          <h2 id="ch2-title">پایداری اوریفیس و اثر آن بر فرآیند اکستروژن</h2>
+        </header>
+
+        <div class="chapter-body">
+          <p>
+            مزیت اصلی نازل الماس پلی‌کریستالی نه فقط سختی، بلکه حفظ قطر مؤثر اوریفیس در
+            طول عمر است. نازل برنجی یا فولادی در اثر سایش، به‌تدریج دهانه خروجی را
+            بزرگ‌تر از قطر تنظیم‌شده در اسلایسر می‌کند. حتی افزایش جزئی قطر مؤثر می‌تواند
+            پهنای اکستروژن، کیفیت سطح بالایی، رفتار پر شدن گوشه‌ها و پیش‌بینی‌پذیری فرآیند
+            را تغییر دهد. اگرچه می‌توان با نازل بزرگ‌تر از قطر اسمی نیز چاپ کرد، چاپ در
+            قطر کمتر از نازل یا انحراف از قطر تنظیم‌شده می‌تواند افت کیفیت در الگوهای مشخص
+            ایجاد کند. بنابراین نازلی که اوریفیس خود را در طول ساعت‌های کار حفظ می‌کند، یک
+            مزیت کنترلی مستقیم برای فارم چاپ است: تنظیمات اسلایسر در طول عمر نازل معتبرتر
+            می‌مانند و نیاز به کالیبراسیون مجدد کاهش می‌یابد.
+          </p>
+
+          <p>
+            بررسی‌های میکروسکوپی نشان می‌دهد اوریفیس <bdi>DiamondBack</bdi> تا بزرگنمایی
+            بالا نیز یکنواخت و گرد باقی می‌ماند، در حالی که نازل‌های متداول در بزرگنمایی
+            بالا ناهمواری‌های ناشی از ماشین‌کاری، سایش یا باقی‌مانده‌های فرآیند را نشان
+            می‌دهند. سطح داخلی نازل نیز نسبت به نازل‌های برنجی و فولادی تمیزتر است و اتصال
+            برنج به الماس (<bdi>brass-to-diamond</bdi>) یکنواخت به نظر می‌رسد. کیفیت این
+            اتصال از نظر انتقال حرارت و نگهداری مکانیکی تیپ اهمیت دارد. بافت سطح داخلی
+            الماس در نواحی غیر از تیپ صیقلی نیست، اما در فرآیند اکستروژن، اصطکاک دیواره
+            به‌هرحال بخشی از رفتار جریان است و این بافت به‌تنهایی اثر مکانیکی تعیین‌کننده‌ای
+            ندارد. نکته مهم، یکنواختی هندسه خروجی و پایداری آن در طول عمر است.
+          </p>
+        </div>
+      </section>
+
+      <!-- ==================== CH 03 ==================== -->
+      <section class="chapter" id="ch3" aria-labelledby="ch3-title">
+        <header class="chapter-header">
+          <span class="chapter-num" aria-hidden="true">03</span>
+          <h2 id="ch3-title">هدایت حرارتی و مسیر حرارتی نازل</h2>
+        </header>
+
+        <div class="chapter-body">
+          <p>
+            الماس هدایت حرارتی بسیار بالایی دارد. این ویژگی می‌تواند مسیر انتقال حرارت از
+            بلوک هیتر به فیلامنت و از نازل به محیط را تحت تأثیر قرار دهد. با این حال، اثر
+            دقیق آن بر پروفایل حرارتی اکستروژن، رفتار ذوب و کیفیت چاپ باید به‌صورت تجربی و
+            کنترل‌شده ارزیابی شود و صرفاً از هدایت حرارتی بالای ماده قابل استنتاج قطعی
+            نیست. اتصال حرارتی بین بخش برنجی و تیپ الماسی نیز یک متغیر مهم است؛ زیرا
+            ناهمگونی ضریب انبساط حرارتی و کیفیت فصل مشترک می‌تواند بر انتقال حرارت و
+            پایداری مکانیکی اثر بگذارد. بنابراین هدایت حرارتی بالا یک مزیت بالقوه است، اما
+            ارزش اصلی <bdi>DiamondBack</bdi> برای فارم چاپ بیشتر در دوام اوریفیس و پایداری
+            فرآیند تعریف می‌شود.
+          </p>
+        </div>
+      </section>
+
+      <!-- ==================== CH 04 ==================== -->
+      <section class="chapter" id="ch4" aria-labelledby="ch4-title">
+        <header class="chapter-header">
+          <span class="chapter-num" aria-hidden="true">04</span>
+          <h2 id="ch4-title">عملکرد جریان و مقایسه با تغییر قطر نازل</h2>
+        </header>
+
+        <div class="chapter-body">
+          <p>
+            در تست جریان، نازل ۱٫۰ میلی‌متر به نرخ حدود ۷۴ میلی‌متر مکعب بر ثانیه رسید و
+            نازل ۰٫۴ میلی‌متر نرخ حداکثری کمتری داشت. این نتیجه باید در چارچوب مهندسی
+            اکستروژن تفسیر شود: افزایش قطر نازل به‌طور معمول اثر بزرگ‌تری بر حداکثر دبی
+            دارد تا تغییر فناوری نازل. بنابراین اگر هدف اصلی افزایش نرخ جریان باشد، انتخاب
+            قطر بزرگ‌تر معمولاً بازده بیشتری دارد. ارزش <bdi>DiamondBack</bdi> در حداکثر
+            دبی نیست؛ در حفظ دبی قابل‌اعتماد، کاهش رانش ابعادی اوریفیس و کاهش توقف‌های
+            نگهداری است.
+          </p>
+        </div>
+      </section>
+
+      <!-- ==================== CH 05 ==================== -->
+      <section class="chapter" id="ch5" aria-labelledby="ch5-title">
+        <header class="chapter-header">
+          <span class="chapter-num" aria-hidden="true">05</span>
+          <h2 id="ch5-title">چرا این نازل برای فارم چاپ اهمیت دارد</h2>
+        </header>
+
+        <div class="chapter-body">
+          <p>
+            در فارم چاپ، هزینه اصلی فقط قیمت نازل نیست؛ توقف خط، نیروی کار تعویض نازل،
+            کالیبراسیون مجدد، اسکراپ قطعات و ناپایداری کیفیت بین پرینترها اهمیت دارد. نازل
+            الماس پلی‌کریستالی در سناریوهای زیر توجیه فنی و اقتصادی قوی‌تری دارد:
+          </p>
+
+          <ul class="tech-list">
+            <li>
+              <strong>بهره‌برداری طولانی‌مدت:</strong> هرچه ساعت کار سالانه پرینتر بیشتر
+              باشد، هزینه تعویض نازل و توقف خط سهم بیشتری از هزینه کل می‌گیرد.
+            </li>
+            <li>
+              <strong>فیلامنت‌های ساینده:</strong> مواد تقویت‌شده با الیاف شیشه، مواد
+              معدنی و کامپوزیت‌های ساینده نازل‌های برنجی را سریع‌تر فرسوده می‌کنند. الماس
+              پلی‌کریستالی مقاومت سایشی بسیار بالاتری ارائه می‌دهد.
+            </li>
+            <li>
+              <strong>پایداری کیفیت بین پرینترها:</strong> اگر چند پرینتر با تنظیمات یکسان
+              کار می‌کنند، حفظ قطر مؤثر اوریفیس باعث کاهش پراکندگی کیفیت و ساده‌تر شدن
+              کنترل فرآیند می‌شود.
+            </li>
+            <li>
+              <strong>پرینتر Workhorse با نازل استاندارد:</strong> برای ماشینی که سال‌ها
+              در سرویس است، نازل با عمر طولانی‌تر یک سرمایه‌گذاری عملیاتی منطقی است.
+            </li>
+            <li>
+              <strong>کاهش وابستگی به کالیبراسیون مکرر:</strong> نازل پایدارتر، اعتبار
+              تنظیمات اسلایسر را در بازه طولانی‌تری حفظ می‌کند.
+            </li>
+          </ul>
+
+          <p style="margin-top: 22px;">
+            در مقابل، برای استفاده تفریحی و کم‌ساعت، توجیه اقتصادی ضعیف‌تر است. مزیت فنی
+            وجود دارد، اما اگر تعداد ساعت چاپ کم باشد، بازگشت سرمایه از طریق کاهش تعویض
+            نازل و اسکراپ محدود خواهد بود.
+          </p>
+        </div>
+      </section>
+
+      <!-- ==================== CH 06 ==================== -->
+      <section class="chapter" id="ch6" aria-labelledby="ch6-title">
+        <header class="chapter-header">
+          <span class="chapter-num" aria-hidden="true">06</span>
+          <h2 id="ch6-title">محدودیت‌ها و ارزیابی فنی</h2>
+        </header>
+
+        <div class="chapter-body">
+          <p>
+            الماس پلی‌کریستالی شکست‌ناپذیر نیست. می‌تواند در اثر ضربه شدید، گیر کردن،
+            تماس نامناسب یا شرایط غیرعادی آسیب ببیند؛ هرچند مکانیزم شکست آن با الماس
+            مونوکریستالی متفاوت است. همچنین برای ارزیابی دقیق دوام در فارم چاپ، صرفاً
+            مشاهده میکروسکوپی کافی نیست و اندازه‌گیری کنترل‌شده سایش اوریفیس، پروفایل سطح
+            و تکرارپذیری اکستروژن در بازه‌های زمانی مشخص لازم است. اثر هدایت حرارتی بر
+            کیفیت چاپ نیز باید جداگانه و با کنترل متغیرها سنجیده شود.
+          </p>
+        </div>
+      </section>
+
+      <!-- ==================== CONCLUSION ==================== -->
+      <section class="chapter" id="conclusion" aria-labelledby="conclusion-title">
+        <header class="chapter-header">
+          <span class="chapter-num" aria-hidden="true">07</span>
+          <h2 id="conclusion-title">جمع‌بندی مهندسی</h2>
+        </header>
+
+        <div class="chapter-body">
+          <div class="callout callout--final">
+            <p class="callout-title">نتیجه</p>
+            <p>
+              نازل الماس پلی‌کریستالی <bdi>DiamondBack</bdi> یک راه‌حل مصرفی نیست؛ یک
+              سرمایه‌گذاری برای پایداری فرآیند است. ارزش اصلی آن در فارم چاپ، کاهش رانش
+              ابعادی اوریفیس، مقاومت به سایش ساینده، کاهش توقف خط و حفظ تکرارپذیری
+              تنظیمات اسلایسر است. اگر نرخ جریان حداکثری هدف باشد، افزایش قطر نازل معمولاً
+              مؤثرتر است؛ اما اگر هدف، دوام عملیاتی و کاهش هزینه نگهداری در ساعت‌های بالای
+              چاپ باشد، نازل الماس پلی‌کریستالی گزینه‌ای فنی و قابل توجیه است.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== ARTICLE FOOTER ==================== -->
+      <div class="article-footer">
+        <div class="hashtags" aria-label="برچسب‌ها">
+          <span>#چاپ_سه_بعدی</span>
+          <span>#FDM</span>
+          <span>#PrintFarm</span>
+          <span>#DiamondNozzle</span>
+          <span>#PolycrystallineDiamond</span>
+          <span>#AdditiveManufacturing</span>
+          <span>#NozzleWear</span>
+          <span>#ProcessStability</span>
+          <span>#Extrusion</span>
+          <span>#ManufacturingEngineering</span>
+        </div>
+
+        <div class="source">
+          <span>انتشار اولیه در</span>
+          <a href="https://www.linkedin.com/in/mashmalol/" target="_blank" rel="noopener noreferrer">linkedin.com/in/mashmalol</a>
+          <span>·</span>
+          <span>نویسنده: mashmalol</span>
+        </div>
+      </div>
+
+    </div>
+  </article>
+
+  <!-- ============================ CONNECT ============================ -->
+  <section class="author" id="connect" aria-labelledby="connect-title">
+    <div class="wrap">
+      <p class="label">
+        <span class="mono">CONNECT / AUTHOR</span>
+      </p>
+      <h2 class="section-title" id="connect-title">ارتباط با نویسنده</h2>
+      <p class="section-lede">
+        تحلیل‌های فنی، مستندات و پیاده‌سازی‌های مرجع در این دو کانال منتشر می‌شوند.
+        برای همکاری، بازبینی فنی یا دسترسی به منابع، از این مسیرها استفاده کنید.
+      </p>
+
+      <div class="connect-grid">
+
+        <a class="card connect-card reveal" href="https://github.com/mashmalol" target="_blank" rel="noopener noreferrer">
+          <span class="connect-tag">REPOSITORY / SOURCE</span>
+          <h3 class="connect-title">github.com/mashmalol</h3>
+          <p class="connect-desc">
+            کد منبع، دارایی‌های فنی و پیاده‌سازی‌های مرجع.
+          </p>
+          <span class="connect-arrow" aria-hidden="true">↗</span>
+        </a>
+
+        <a class="card connect-card reveal" href="https://www.linkedin.com/in/mashmalol/" target="_blank" rel="noopener noreferrer">
+          <span class="connect-tag">PROFILE / EDITORIAL</span>
+          <h3 class="connect-title">linkedin.com/in/mashmalol</h3>
+          <p class="connect-desc">
+            تحلیل‌های فنی، مطالعه‌های موردی و یادداشت‌های تخصصی.
+          </p>
+          <span class="connect-arrow" aria-hidden="true">↗</span>
+        </a>
+
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ============================ FOOTER ============================ -->
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-grid">
+
+      <div>
+        <div class="footer-brand">نازل الماس پلی‌کریستالی</div>
+        <p class="footer-note">
+          تحلیل فنی دوام، پایداری اوریفیس و اقتصاد نگهداری نازل
+          <bdi>DiamondBack V6</bdi> در فارم چاپ سه‌بعدی FDM.
+        </p>
+      </div>
+
+      <div class="footer-col">
+        <h4>SECTIONS</h4>
+        <ul>
+          <li><a href="#summary">خلاصه</a></li>
+          <li><a href="#ch1">ساختار ماده</a></li>
+          <li><a href="#ch2">پایداری اوریفیس</a></li>
+          <li><a href="#ch4">عملکرد جریان</a></li>
+          <li><a href="#ch5">فارم چاپ</a></li>
+          <li><a href="#conclusion">جمع‌بندی</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h4>AUTHOR</h4>
+        <ul>
+          <li>
+            <a class="mono" href="https://github.com/mashmalol" target="_blank" rel="noopener noreferrer">github.com/mashmalol</a>
+          </li>
+          <li>
+            <a class="mono" href="https://www.linkedin.com/in/mashmalol/" target="_blank" rel="noopener noreferrer">linkedin.com/in/mashmalol</a>
+          </li>
+        </ul>
+      </div>
+
+    </div>
+
+    <div class="footer-legal">
+      <span class="mono">FILE 01 / DIAMONDBACK V6</span>
+      <span>انتشار اولیه: LinkedIn</span>
+      <span>نویسنده: mashmalol</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  /* reading progress */
+  (function () {
+    var bar = document.getElementById('progress');
+    if (!bar) return;
+
+    var doc = document.documentElement;
+
+    function update() {
+      var top = window.pageYOffset || doc.scrollTop;
+      var height = doc.scrollHeight - doc.clientHeight;
+      var pct = height > 0 ? (top / height) * 100 : 0;
+      bar.style.width = Math.min(100, Math.max(0, pct)) + '%';
+    }
+
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  })();
+
+  /* reveals */
+  (function () {
+    var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var items = document.querySelectorAll('.reveal');
+
+    if (prefersReduced || !('IntersectionObserver' in window)) {
+      items.forEach(function (el) { el.classList.add('is-visible'); });
+      return;
+    }
+
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+
+    items.forEach(function (el) { observer.observe(el); });
+  })();
+</script>
+
+</body>
+</html>
